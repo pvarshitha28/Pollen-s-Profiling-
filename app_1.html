@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pollen Grain Classifier</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for a clean look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        /* Custom styling for file input to make it look like a button */
+        .custom-file-input {
+            display: inline-block;
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out;
+            text-align: center;
+            line-height: 1.5; /* Align text vertically */
+        }
+        .custom-file-input:hover {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+        .custom-file-input input[type="file"] {
+            display: none; /* Hide the default file input */
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-md mx-auto transform transition-all duration-300 hover:shadow-xl">
+        <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-6">Pollen Grain Classifier</h1>
+
+        <!-- Image Upload Section -->
+        <div class="mb-6 text-center">
+            <label for="imageUpload" class="custom-file-input">
+                Upload Pollen Image
+                <input type="file" id="imageUpload" accept="image/*">
+            </label>
+            <p class="text-sm text-gray-500 mt-2">Upload a clear image of a pollen grain sample.</p>
+        </div>
+
+        <!-- Image Preview -->
+        <div class="mb-6 border-2 border-dashed border-gray-300 rounded-lg p-4 flex justify-center items-center h-48 overflow-hidden bg-gray-50">
+            <img id="imagePreview" src="https://placehold.co/200x150/e0e0e0/555555?text=Image+Preview" alt="Image Preview" class="max-w-full max-h-full object-contain rounded-md shadow-md" onerror="this.src='https://placehold.co/200x150/e0e0e0/555555?text=Image+Preview'">
+        </div>
+
+        <!-- Predict Button -->
+        <div class="mb-6">
+            <button id="predictButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+                Identify Pollen Type
+            </button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="hidden text-center text-blue-600 font-medium mb-4">
+            <div class="flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing image...
+            </div>
+        </div>
+
+        <!-- Result Display -->
+        <div id="resultDisplay" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative text-center">
+            <p class="font-semibold text-lg mb-1">Pollen Type Identified:</p>
+            <p id="pollenType" class="text-xl font-bold"></p>
+            <p class="text-sm mt-2 text-gray-600">This is a simulated prediction based on the image content.</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center">
+            <p class="font-semibold text-lg mb-1">Error:</p>
+            <p id="errorText" class="text-base"></p>
+        </div>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const predictButton = document.getElementById('predictButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const pollenType = document.getElementById('pollenType');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        // Initially disable the predict button
+        predictButton.disabled = true;
+        predictButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        /**
+         * Hides all dynamic message displays (loading, result, error).
+         */
+        function hideAllMessages() {
+            loadingIndicator.classList.add('hidden');
+            resultDisplay.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        /**
+         * Displays an error message in the UI.
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            hideAllMessages();
+            errorText.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        /**
+         * Handles the image file selection and displays a preview.
+         * Enables the predict button if a file is selected.
+         * @param {Event} event - The change event from the file input.
+         */
+        imageUpload.addEventListener('change', function(event) {
+            hideAllMessages(); // Clear previous messages
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result; // Display image preview
+                    predictButton.disabled = false; // Enable predict button
+                    predictButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+                reader.onerror = function() {
+                    displayError('Failed to read image file.');
+                    imagePreview.src = 'https://placehold.co/200x150/e0e0e0/555555?text=Image+Preview';
+                    predictButton.disabled = true;
+                    predictButton.classList.add('opacity-50', 'cursor-not-allowed');
+                };
+                reader.readAsDataURL(file); // Read file as Data URL for preview
+            } else {
+                imagePreview.src = 'https://placehold.co/200x150/e0e0e0/555555?text=Image+Preview';
+                predictButton.disabled = true;
+                predictButton.classList.add('opacity-50', 'cursor-not-allowed');
+                hideAllMessages();
+            }
+        });
+
+        /**
+         * Handles the click event for the predict button.
+         * Sends the image to the Flask backend for classification.
+         */
+        predictButton.addEventListener('click', async function() {
+            hideAllMessages(); // Clear previous messages
+            const file = imageUpload.files[0];
+
+            if (!file) {
+                displayError("Please upload an image first.");
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+            predictButton.disabled = true; // Disable button during processing
+            predictButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const formData = new FormData();
+            formData.append('image', file); // Append the image file to form data
+
+            try {
+                // Send the image to the Flask backend's /predict endpoint
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.pollen_type) {
+                    pollenType.textContent = result.pollen_type;
+                    resultDisplay.classList.remove('hidden'); // Show result
+                } else {
+                    displayError("No prediction received from the server.");
+                }
+
+            } catch (error) {
+                console.error("Error during prediction:", error);
+                displayError("Failed to get prediction: " + error.message);
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                predictButton.disabled = false; // Re-enable button
+                predictButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>

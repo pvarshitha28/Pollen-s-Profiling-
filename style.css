@@ -1,0 +1,22 @@
+/* static/css/style.css */
+/* Custom styles to complement Tailwind, if needed.
+   For this example, Tailwind handles most styling,
+   but you can add more specific rules here. */
+
+body {
+    font-family: 'Inter', sans-serif;
+    /* Add any global styles not covered by Tailwind here */
+}
+
+/* Example of a custom style if needed, e.g., a specific shadow effect */
+.shadow-xl-custom {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Ensure image preview fits well */
+#uploadedImage {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain; /* Ensures the whole image is visible */
+}
+

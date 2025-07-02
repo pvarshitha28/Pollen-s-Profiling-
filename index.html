@@ -1,0 +1,134 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pollen's Profiling: Automated Classification</title>
+    <!-- Tailwind CSS CDN for quick styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-inter min-h-screen flex flex-col justify-center items-center py-10">
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Pollen's Profiling</h1>
+            <p class="text-xl text-indigo-600">Automated Classification of Pollen Grains</p>
+            <p class="mt-4 text-gray-600">
+                Upload an image of a pollen grain to classify its type. This system leverages deep learning
+                for accurate identification of morphological features.
+            </p>
+        </header>
+
+        <section class="upload-section mb-8 border-b pb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Upload Pollen Image</h2>
+            <form id="uploadForm" class="flex flex-col items-center space-y-4">
+                <input type="file" id="pollenImageInput" name="file" accept="image/*" class="w-full text-gray-700 bg-gray-50 border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                    Classify Pollen
+                </button>
+            </form>
+            <div id="loadingIndicator" class="mt-4 text-center hidden">
+                <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-t-4 border-indigo-200 border-t-indigo-600"></div>
+                <p class="text-indigo-600 mt-2">Classifying...</p>
+            </div>
+            <div id="errorMessage" class="mt-4 text-red-600 text-center hidden font-medium"></div>
+        </section>
+
+        <section class="results-section mt-8 hidden" id="resultsSection">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Classification Result</h2>
+            <div class="flex flex-col md:flex-row justify-center items-center md:space-x-8 space-y-6 md:space-y-0">
+                <div class="image-display w-full md:w-1/2 flex justify-center">
+                    <img id="uploadedImage" src="#" alt="Uploaded Pollen" class="max-w-full h-auto rounded-lg shadow-md border border-gray-200 object-contain max-h-64">
+                </div>
+                <div class="prediction-details w-full md:w-1/2 text-center md:text-left">
+                    <p class="text-lg text-gray-800 mb-2">
+                        <strong>Predicted Type:</strong> <span id="predictedType" class="text-indigo-700 font-semibold">N/A</span>
+                    </p>
+                    
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-8 text-center text-gray-500 text-sm border-t pt-8">
+            &copy; 2025 Pollen's Profiling. All rights reserved.
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const uploadForm = document.getElementById('uploadForm');
+            const pollenImageInput = document.getElementById('pollenImageInput');
+            const uploadedImage = document.getElementById('uploadedImage');
+            const predictedType = document.getElementById('predictedType');
+            const confidence = document.getElementById('confidence');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultsSection = document.getElementById('resultsSection');
+
+            // Event listener for file input change to display preview
+            pollenImageInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        uploadedImage.src = e.target.result;
+                        resultsSection.classList.add('hidden'); // Hide results until new prediction
+                        errorMessage.classList.add('hidden'); // Hide any previous errors
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    uploadedImage.src = "#"; // Clear image if no file selected
+                }
+            });
+
+            // Event listener for form submission
+            uploadForm.addEventListener('submit', async function(event) {
+                event.preventDefault(); // Prevent default form submission
+
+                const file = pollenImageInput.files[0];
+                if (!file) {
+                    errorMessage.textContent = 'Please select an image file to upload.';
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+
+                // Show loading indicator
+                loadingIndicator.classList.remove('hidden');
+                errorMessage.classList.add('hidden'); // Hide previous errors
+                resultsSection.classList.add('hidden'); // Hide previous results
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        predictedType.textContent = data.predicted_class;
+                        confidence.textContent = data.confidence;
+                        resultsSection.classList.remove('hidden'); // Show results section
+                    } else {
+                        errorMessage.textContent = data.error || 'An unknown error occurred during classification.';
+                        errorMessage.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error during fetch:', error);
+                    errorMessage.textContent = 'Network error or server unreachable. Please try again.';
+                    errorMessage.classList.remove('hidden');
+                } finally {
+                    loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
